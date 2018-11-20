@@ -494,14 +494,14 @@ minpix_ = 80 #100 # Set minimum number of pixels found to recenter window
 show_calib_result_ = False
 show_process_interim_ = False
 draw_roi_ = False
-save_img_ = True
+save_img_ = False
 curvature_history_size_ = 20
 fit_history_size_ = 20
 curvature_min_ = 500
 curvature_max_diff_ = 7
 slope_max_diff_ = 1280 * 0.07 #2% of max width
 
-# Do calibration
+## CALIBRATION ##
 chessboard = glob.glob('camera_cal\\calibration*.jpg')
 mtx_, dist_ = calib.computeCalibMatrix(chessboard, 9, 6, show_calib_result_)
 
@@ -511,9 +511,8 @@ right_ = Line()
 frame_ = 0
 video_name_ = ""
 
+## PROCESS ##
 #process_image(mpimg.imread("test_images\\straight_lines1.jpg"))
-#process_image(mpimg.imread("output_images\\challenge_video1.jpg"))
-
 process_video("project_video.mp4", "output_video/")
-process_video("challenge_video.mp4", "output_video/")
+#process_video("challenge_video.mp4", "output_video/")
 #process_video("harder_challenge_video.mp4", "output_video/", 5)
