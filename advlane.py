@@ -142,19 +142,7 @@ def find_lane_pixels(img, startx, img_visualization):
             new_slope = new_window_center - x_current
             # sanity check for new window center
             # skip if this is the first time we find points
-            if slope == None:
-                x_current = new_window_center  
-                #update slope only if we already detected two valid window centers
-                if cnt_valid_win > 1:
-                    slope = new_slope              
-            else:
-                # check if the slope direction is the same the the slopes are similar
-                if (abs(new_slope-slope) < slope_max_diff_):
-                    slope = new_slope
-                    x_current = new_window_center
-                else:
-                    #bad slope detected, break
-                    break
+            x_current = new_window_center 
 
         # Append these indices to the lists
         lane_inds.append(new_inds)      
@@ -165,9 +153,6 @@ def find_lane_pixels(img, startx, img_visualization):
     # Extract left and right line pixel positions
     x = nonzerox[lane_inds]
     y = nonzeroy[lane_inds] 
-    
-    # mark pixels in img
-    img_visualization[y, x] = [255, 0, 0]
 
     return x, y
 
@@ -271,7 +256,9 @@ def process_image(img):
         # find starting point using histogram
         start = np.argmax(histogram[:midpoint])
         # start sliding window algorithm to find points        
-        left_.allx, left_.ally = find_lane_pixels(img_warp, start, img_visualization)
+        left_.allx, left_.ally = find_lane_pixels(img_warp, start, img_visualization)    
+        # mark pixels in img
+        img_visualization[left_.ally, left_.allx] = [255, 0, 0]
         left_reset = True
     else:
         #update points
@@ -281,7 +268,9 @@ def process_image(img):
         # find starting point using histogram
         start = np.argmax(histogram[midpoint:]) + midpoint
         # start sliding window algorithm to find points        
-        right_.allx, right_.ally = find_lane_pixels(img_warp, start, img_visualization)
+        right_.allx, right_.ally = find_lane_pixels(img_warp, start, img_visualization)    
+        # mark pixels in img
+        img_visualization[right_.ally, right_.allx] = [0, 0, 255]
         right_reset = True
     else:
         #update points
@@ -324,9 +313,9 @@ def process_image(img):
     if save_img_:
         imglines = np.copy(img_visualization)
         for i in range(0, len(plot_y)-1):
-            cv2.line(imglines, (int(left_x[i]), int(plot_y[i+1])), (int(left_x[i]), int(plot_y[i+1])), (255,0,0), 4)
-            cv2.line(imglines, (int(right_x[i]), int(plot_y[i+1])), (int(right_x[i]), int(plot_y[i+1])), (255,0,0), 4)
-        cv2.imwrite("output_images/" + video_name_ + str(frame_) + "_lines.jpg", imglines)
+            cv2.line(imglines, (int(left_x[i]), int(plot_y[i+1])), (int(left_x[i]), int(plot_y[i+1])), (255,255,0), 4)
+            cv2.line(imglines, (int(right_x[i]), int(plot_y[i+1])), (int(right_x[i]), int(plot_y[i+1])), (255,255,0), 4)
+        cv2.imwrite("output_images/" + video_name_ + str(frame_) + "_lines.jpg", cv2.cvtColor(imglines, cv2.COLOR_BGR2RGB))
 
     if left_.detected & right_.detected:        
         #check if distance between lines is plausible
@@ -448,8 +437,10 @@ def process_image(img):
     result = cv2.addWeighted(img_undist, 1, newwarp, draw_weight, 0)
     # draw curvature value
     cv2.putText(result, "curvature=" + str(np.mean((left_.getCurvatureMean(), right_.getCurvatureMean()))), (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 1, cv2.LINE_AA)
+    
     # compute offset
-    offset = (img.shape[1]/2 - (right_x_mean[-1] - left_x_mean[-1])) * xm_per_pix_
+    lane_mid = (right_x_mean[-1] - left_x_mean[-1])/2 + left_x_mean[-1]
+    offset = (img.shape[1]/2 - lane_mid) * xm_per_pix_
     cv2.putText(result, "offset=" + str(offset), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 1, cv2.LINE_AA)
     # output state of line detection
     cv2.putText(result, "|", (1100,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 1, cv2.LINE_AA)
@@ -464,6 +455,10 @@ def process_image(img):
     return result
 
 def process_video(file, output_dir, length=-1):
+    global left_, right_    
+    left_ = Line()
+    right_ = Line()
+
     #load video
     clip1 = VideoFileClip(file)
     if length > 0:
@@ -487,8 +482,8 @@ def process_video(file, output_dir, length=-1):
 
 ## CONSTANTS ##
 # Define conversions in x and y from pixels space to meters
-ym_per_pix_ = 30/720 # meters per pixel in y dimension
-xm_per_pix_ = 3.7/700 # meters per pixel in x dimension
+ym_per_pix_ = 3/79 # meters per pixel in y dimension
+xm_per_pix_ = 3.7/770 # meters per pixel in x dimension
 
 ## HYPERPARAMETERS ##
 nwindows_ = 15 #9 # Choose the number of sliding windows
@@ -506,7 +501,6 @@ curvature_min_ = 500
 curvature_max_diff_ = 7
 slope_max_diff_ = 1280 * 0.07 #2% of max width
 
-
 # Do calibration
 chessboard = glob.glob('camera_cal\\calibration*.jpg')
 mtx_, dist_ = calib.computeCalibMatrix(chessboard, 9, 6, show_calib_result_)
@@ -517,19 +511,9 @@ right_ = Line()
 frame_ = 0
 video_name_ = ""
 
-testimages = glob.glob('output_images\\video12*.jpg')
-for fname in testimages:
-    left_ = Line()
-    right_ = Line()
-    #process_image(mpimg.imread(fname))
-
-
 #process_image(mpimg.imread("test_images\\straight_lines1.jpg"))
 #process_image(mpimg.imread("output_images\\challenge_video1.jpg"))
 
-process_video("project_video_full.mp4", "output_video/")
-
-left_ = Line()
-right_ = Line()
-process_video("challenge_video_full.mp4", "output_video/")
+process_video("project_video.mp4", "output_video/")
+process_video("challenge_video.mp4", "output_video/")
 #process_video("harder_challenge_video.mp4", "output_video/", 5)
